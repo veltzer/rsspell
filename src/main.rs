@@ -4,8 +4,50 @@ use std::path::Path;
 use walkdir::WalkDir;
 use regex::Regex;
 use zspell::Dictionary;
+use clap::{Parser as ClapParser, Subcommand};
+
+#[derive(ClapParser)]
+#[command(name = "rsspell")]
+#[command(about = "A fast and efficient spell checker", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Scan files for typos
+    Scan {
+        /// The directory or file to scan
+        #[arg(default_value = ".")]
+        path: String,
+    },
+    /// Show version information
+    Version,
+}
 
 fn main() {
+    let cli = Cli::parse();
+
+    match &cli.command {
+        Commands::Scan { path } => {
+            run_scan(path);
+        }
+        Commands::Version => {
+            println!("rsspell {}", env!("CARGO_PKG_VERSION"));
+            println!("Build details:");
+            println!("  Edition:   {}", env!("RUST_EDITION"));
+            println!("  Git SHA:   {}", env!("GIT_SHA"));
+            println!("  Branch:    {}", env!("GIT_BRANCH"));
+            println!("  Describe:  {}", env!("GIT_DESCRIBE"));
+            println!("  Rustc:     {}", env!("RUSTC_SEMVER"));
+            println!("  Timestamp: {}", env!("BUILD_TIMESTAMP"));
+            println!("  Dirty:     {}", env!("GIT_DIRTY"));
+        }
+    }
+}
+
+fn run_scan(root_path: &str) {
     // 1. Load the Hunspell files into strings
     const AFF_CONTENT: &str = include_str!("../en_US.aff");
     const DIC_CONTENT: &str = include_str!("../en_US.dic");
@@ -19,9 +61,9 @@ fn main() {
 
     let re = Regex::new(r"[a-zA-Z]+").unwrap();
 
-    println!("Scanning for typos using zspell...\n");
+    println!("Scanning for typos using zspell in: {}\n", root_path);
 
-    for entry in WalkDir::new(".").into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(root_path).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         if path.is_file() {
             match path.extension().and_then(|s| s.to_str()) {

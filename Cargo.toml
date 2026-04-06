@@ -1,5 +1,5 @@
 [package]
-name = "spell_checker_rust"
+name = "rsspell"
 version = "0.1.0"
 edition = "2024"
 
@@ -9,3 +9,11 @@ svg = "0.17"
 walkdir = "2"
 regex = "1"
 zspell = "0.5.5"
+clap = { version = "4.5", features = ["derive"] }
+
+[profile.release]
+opt-level = 3       # Maximize speed
+lto = true          # Link Time Optimization
+codegen-units = 1   # Better optimization, slower build
+panic = "abort"     # Remove panic unwinding to save space
+strip = true        # Strip symbols from the binary
