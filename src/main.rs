@@ -7,13 +7,13 @@ use zspell::Dictionary;
 
 fn main() {
     // 1. Load the Hunspell files into strings
-    let aff_content = fs::read_to_string("en_US.aff").expect("Failed to load en_US.aff");
-    let dic_content = fs::read_to_string("en_US.dic").expect("Failed to load en_US.dic");
+    const AFF_CONTENT: &str = include_str!("../en_US.aff");
+    const DIC_CONTENT: &str = include_str!("../en_US.dic");
 
     // 2. Build the zspell dictionary
     let dict: Dictionary = zspell::builder()
-        .config_str(&aff_content)
-        .dict_str(&dic_content)
+        .config_str(AFF_CONTENT)
+        .dict_str(DIC_CONTENT)
         .build()
         .expect("Failed to build dictionary");
 
