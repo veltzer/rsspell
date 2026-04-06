@@ -1,0 +1,11 @@
+[package]
+name = "spell_checker_rust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pulldown-cmark = "0.13"
+svg = "0.17"
+walkdir = "2"
+regex = "1"
+zspell = "0.5.5"
