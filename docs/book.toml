@@ -6,5 +6,5 @@ src = "src"
 title = "rsspell Documentation"
 
 [output.html]
+destination = "book/html"
 git-repository-url = "https://github.com/veltzer/rsspell"
-edit-url-template = "https://github.com/veltzer/rsspell/edit/main/book/src/{path}"
