@@ -6,7 +6,7 @@ A fast and efficient spell checker.
 
 ### Built-in en-US Dictionary
 
-The `rsspell` tool includes the `en-US` dictionary (`en_US.aff` and `en_US.dic`) embedded directly in the binary. This choice was made to ensure:
+The `rsspell` tool includes the `en-US` dictionary (`dictionaries/en_US.aff` and `dictionaries/en_US.dic`) embedded directly in the binary. This choice was made to ensure:
 
 1. **Immediate Value:** The tool works out-of-the-box for the most common use case (English spell-checking) without requiring any initial setup or dictionary downloads.
 2. **Offline Functionality:** Users can perform spell-checks in English even without an active internet connection.
@@ -14,7 +14,7 @@ The `rsspell` tool includes the `en-US` dictionary (`en_US.aff` and `en_US.dic`)
 
 ### Dictionary Structure (Hunspell Format)
 
-The dictionary is split into two files (`en_US.aff` and `en_US.dic`) following the Hunspell standard. This dual-file approach is used for **affix compression**, which significantly reduces the dictionary's footprint:
+The dictionary is split into two files (`dictionaries/en_US.aff` and `dictionaries/en_US.dic`) following the Hunspell standard. This dual-file approach is used for **affix compression**, which significantly reduces the dictionary's footprint:
 
 *   **`.dic` (Dictionary File):** Contains a list of base words (stems) along with flags that indicate which rules apply to them.
 *   **`.aff` (Affix File):** Defines the grammatical rules for prefixes and suffixes (e.g., how to handle plurals, tenses, and possessives).
