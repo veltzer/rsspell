@@ -26,6 +26,9 @@ enum Commands {
         /// The language to use (e.g., en-US, de-DE)
         #[arg(short, long, default_value = "en-US")]
         lang: String,
+        /// Words to ignore
+        #[arg(short, long)]
+        ignore: Vec<String>,
     },
     /// Show version information
     Version,
@@ -60,8 +63,8 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Scan { path, lang } => {
-            run_scan(path, lang)?;
+        Commands::Scan { path, lang, ignore } => {
+            run_scan(path, lang, ignore)?;
         }
         Commands::Version => {
             println!("rsspell {} by {}", env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_AUTHORS"));
@@ -100,6 +103,18 @@ fn list_remote_dicts() -> Result<()> {
     let resp = client.get(url).send()?.error_for_status()?;
     let contents: Vec<serde_json::Value> = resp.json()?;
     
+    let langs = parse_remote_dicts(contents);
+    
+    println!("Available languages:");
+    for lang in langs {
+        println!("  - {}", lang);
+    }
+    println!("\nInstall any of these with: rsspell dicts install <lang>");
+    
+    Ok(())
+}
+
+fn parse_remote_dicts(contents: Vec<serde_json::Value>) -> Vec<String> {
     let mut langs = Vec::new();
     for item in contents {
         if item["type"] == "dir" {
@@ -108,15 +123,8 @@ fn list_remote_dicts() -> Result<()> {
             }
         }
     }
-    
     langs.sort();
-    println!("Available languages:");
-    for lang in langs {
-        println!("  - {}", lang);
-    }
-    println!("\nInstall any of these with: rsspell dicts install <lang>");
-    
-    Ok(())
+    langs
 }
 
 fn get_dict_dir() -> Result<PathBuf> {
@@ -216,9 +224,19 @@ fn load_dictionary(lang: &str) -> Result<Dictionary> {
     Err(anyhow!("Dictionary for '{}' not found. Install it with: rsspell dicts install {}", lang_normalized, lang_normalized))
 }
 
-fn run_scan(root_path: &str, lang: &str) -> Result<()> {
+fn run_scan(root_path: &str, lang: &str, ignore: &[String]) -> Result<()> {
     let dict = load_dictionary(lang)?;
     let re = Regex::new(r"[a-zA-Z]+").unwrap();
+
+    let mut ignore_words: Vec<String> = ignore.to_vec();
+    if let Ok(content) = fs::read_to_string(".rsspellignore") {
+        for line in content.lines() {
+            let line = line.trim();
+            if !line.is_empty() && !line.starts_with('#') {
+                ignore_words.push(line.to_string());
+            }
+        }
+    }
 
     println!("Scanning for typos using zspell (lang: {}) in: {}\n", lang, root_path);
 
@@ -226,8 +244,8 @@ fn run_scan(root_path: &str, lang: &str) -> Result<()> {
         let path = entry.path();
         if path.is_file() {
             match path.extension().and_then(|s| s.to_str()) {
-                Some("md") => check_markdown(path, &dict, &re),
-                Some("svg") => check_svg(path, &dict, &re),
+                Some("md") => check_markdown(path, &dict, &re, &ignore_words),
+                Some("svg") => check_svg(path, &dict, &re, &ignore_words),
                 _ => {}
             }
         }
@@ -235,39 +253,53 @@ fn run_scan(root_path: &str, lang: &str) -> Result<()> {
     Ok(())
 }
 
-fn check_markdown(path: &Path, dict: &Dictionary, re: &Regex) {
+fn check_markdown(path: &Path, dict: &Dictionary, re: &Regex, ignore: &[String]) {
     let content = fs::read_to_string(path).expect("Could not read file");
-    let parser = Parser::new(&content);
-
     println!("Checking Markdown: {}", path.display());
-    for event in parser {
-        if let Event::Text(text) = event {
-            let _ = find_typos(&text, dict, re);
-        }
-    }
+    find_markdown_typos(&content, dict, re, ignore);
     println!();
 }
 
-fn check_svg(path: &Path, dict: &Dictionary, re: &Regex) {
+fn find_markdown_typos(content: &str, dict: &Dictionary, re: &Regex, ignore: &[String]) -> Vec<String> {
+    let mut all_typos = Vec::new();
+    let parser = Parser::new(content);
+
+    for event in parser {
+        if let Event::Text(text) = event {
+            all_typos.extend(find_typos(&text, dict, re, ignore));
+        }
+    }
+    all_typos
+}
+
+fn check_svg(path: &Path, dict: &Dictionary, re: &Regex, ignore: &[String]) {
     let content = fs::read_to_string(path).expect("Could not read file");
     println!("Checking SVG: {}", path.display());
+    find_svg_typos(&content, dict, re, ignore);
+    println!();
+}
 
-    let mut parser = svg::Parser::new(&content);
+fn find_svg_typos(content: &str, dict: &Dictionary, re: &Regex, ignore: &[String]) -> Vec<String> {
+    let mut all_typos = Vec::new();
+    let mut parser = svg::Parser::new(content);
     while let Some(event) = parser.next() {
         match event {
             svg::parser::Event::Text(text) => {
-                let _ = find_typos(&text, dict, re);
+                all_typos.extend(find_typos(&text, dict, re, ignore));
             }
             _ => {}
         }
     }
-    println!();
+    all_typos
 }
 
-fn find_typos(text: &str, dict: &Dictionary, re: &Regex) -> Vec<String> {
+fn find_typos(text: &str, dict: &Dictionary, re: &Regex, ignore: &[String]) -> Vec<String> {
     let mut typos = Vec::new();
     for mat in re.find_iter(text) {
         let word = mat.as_str();
+        if ignore.iter().any(|i| i.eq_ignore_ascii_case(word)) {
+            continue;
+        }
         if !dict.check_word(word) {
             println!("  -> Typo found: \"{}\"", word);
             typos.push(word.to_string());
@@ -291,7 +323,66 @@ mod tests {
             .unwrap();
         let re = Regex::new(r"[a-zA-Z]+").unwrap();
         
-        let typos = find_typos("This is a test with a typo: markdonw", &dict, &re);
+        let typos = find_typos("This is a test with a typo: markdonw", &dict, &re, &[]);
         assert_eq!(typos, vec!["markdonw"]);
+    }
+
+    #[test]
+    fn test_find_svg_typos() {
+        let aff_content = include_str!("../dictionaries/en_US.aff");
+        let dic_content = include_str!("../dictionaries/en_US.dic");
+        let dict = zspell::builder()
+            .config_str(aff_content)
+            .dict_str(dic_content)
+            .build()
+            .unwrap();
+        let re = Regex::new(r"[a-zA-Z]+").unwrap();
+
+        let svg_content = r#"<svg><text x="10" y="20">Hello world</text><text x="10" y="40">This has a typo: markdonw</text></svg>"#;
+        let typos = find_svg_typos(svg_content, &dict, &re, &[]);
+        assert_eq!(typos, vec!["markdonw"]);
+    }
+
+    #[test]
+    fn test_find_markdown_typos() {
+        let aff_content = include_str!("../dictionaries/en_US.aff");
+        let dic_content = include_str!("../dictionaries/en_US.dic");
+        let dict = zspell::builder()
+            .config_str(aff_content)
+            .dict_str(dic_content)
+            .build()
+            .unwrap();
+        let re = Regex::new(r"[a-zA-Z]+").unwrap();
+
+        let md_content = "# Title\n\nThis is a test with a typo: markdonw.\n\n- item 1\n- item 2";
+        let typos = find_markdown_typos(md_content, &dict, &re, &[]);
+        assert_eq!(typos, vec!["markdonw"]);
+    }
+
+    #[test]
+    fn test_find_typos_with_ignore() {
+        let aff_content = include_str!("../dictionaries/en_US.aff");
+        let dic_content = include_str!("../dictionaries/en_US.dic");
+        let dict = zspell::builder()
+            .config_str(aff_content)
+            .dict_str(dic_content)
+            .build()
+            .unwrap();
+        let re = Regex::new(r"[a-zA-Z]+").unwrap();
+
+        let typos = find_typos("This markdonw should be ignored", &dict, &re, &["markdonw".to_string()]);
+        assert!(typos.is_empty());
+    }
+
+    #[test]
+    fn test_parse_remote_dicts() {
+        let json = r#"[
+            {"name": "de", "type": "dir"},
+            {"name": "en", "type": "dir"},
+            {"name": "README.md", "type": "file"}
+        ]"#;
+        let contents: Vec<serde_json::Value> = serde_json::from_str(json).unwrap();
+        let langs = parse_remote_dicts(contents);
+        assert_eq!(langs, vec!["de", "en"]);
     }
 }

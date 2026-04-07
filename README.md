@@ -33,6 +33,14 @@ To scan all Markdown and SVG files in the current directory:
 rsspell scan
 ```
 
+To ignore specific words:
+
+```bash
+rsspell scan --ignore word1 word2
+```
+
+You can also create an `.rsspellignore` file to list words that should be skipped automatically.
+
 ### Managing Dictionaries
 
 `rsspell` includes a built-in `en-US` dictionary. You can manage additional dictionaries with the `dicts` subcommand:

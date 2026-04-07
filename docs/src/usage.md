@@ -22,6 +22,24 @@ To specify a language (e.g., for installed dictionaries):
 rsspell scan --lang de-DE
 ```
 
+To ignore specific words via the command line:
+
+```bash
+rsspell scan --ignore word1 word2
+```
+
+### `.rsspellignore` File
+
+You can also create a `.rsspellignore` file in the root of your project to skip words automatically. Each line should contain one word to ignore. Lines starting with `#` are treated as comments.
+
+Example `.rsspellignore`:
+```text
+# Project-specific technical terms
+rsspell
+zspell
+veltzer
+```
+
 ## Managing Dictionaries
 
 `rsspell` includes a built-in `en-US` dictionary. You can manage additional dictionaries with the `dicts` subcommand.
