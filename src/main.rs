@@ -1,11 +1,12 @@
 use pulldown_cmark::{Parser, Event};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 use regex::Regex;
 use zspell::Dictionary;
 use clap::{Parser as ClapParser, Subcommand, CommandFactory};
 use clap_complete::{generate, Shell};
+use anyhow::{Context, Result, anyhow};
 
 #[derive(ClapParser)]
 #[command(name = "rsspell")]
@@ -22,6 +23,9 @@ enum Commands {
         /// The directory or file to scan
         #[arg(default_value = ".")]
         path: String,
+        /// The language to use (e.g., en-US, de-DE)
+        #[arg(short, long, default_value = "en-US")]
+        lang: String,
     },
     /// Show version information
     Version,
@@ -30,14 +34,32 @@ enum Commands {
         /// The shell to generate completions for
         shell: Shell,
     },
+    /// Manage dictionaries
+    Dicts {
+        #[command(subcommand)]
+        action: DictAction,
+    },
 }
 
-fn main() {
+#[derive(Subcommand)]
+enum DictAction {
+    /// List installed dictionaries
+    List,
+    /// Install a new dictionary (e.g., en-US, de-DE)
+    Install {
+        /// The language code to install
+        lang: String,
+    },
+    /// Show the path to the dictionaries directory
+    Path,
+}
+
+fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
-        Commands::Scan { path } => {
-            run_scan(path);
+        Commands::Scan { path, lang } => {
+            run_scan(path, lang)?;
         }
         Commands::Version => {
             println!("rsspell {} by {}", env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_AUTHORS"));
@@ -54,24 +76,118 @@ fn main() {
             let name = cmd.get_name().to_string();
             generate(*shell, &mut cmd, name, &mut std::io::stdout());
         }
+        Commands::Dicts { action } => match action {
+            DictAction::List => list_dicts()?,
+            DictAction::Install { lang } => install_dict(lang)?,
+            DictAction::Path => println!("{}", get_dict_dir()?.display()),
+        },
     }
+
+    Ok(())
 }
 
-fn run_scan(root_path: &str) {
-    // 1. Load the Hunspell files into strings
-    const AFF_CONTENT: &str = include_str!("../en_US.aff");
-    const DIC_CONTENT: &str = include_str!("../en_US.dic");
+fn get_dict_dir() -> Result<PathBuf> {
+    let mut path = dirs::data_local_dir()
+        .context("Could not find local data directory")?;
+    path.push("rsspell");
+    path.push("dicts");
+    if !path.exists() {
+        fs::create_dir_all(&path).context("Failed to create dictionary directory")?;
+    }
+    Ok(path)
+}
 
-    // 2. Build the zspell dictionary
-    let dict: Dictionary = zspell::builder()
-        .config_str(AFF_CONTENT)
-        .dict_str(DIC_CONTENT)
-        .build()
-        .expect("Failed to build dictionary");
+fn list_dicts() -> Result<()> {
+    let dict_dir = get_dict_dir()?;
+    println!("Dictionaries stored in: {}", dict_dir.display());
+    println!("Installed languages:");
+    
+    let mut langs = Vec::new();
+    for entry in fs::read_dir(dict_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("aff") {
+            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                langs.push(stem.to_string());
+            }
+        }
+    }
+    
+    if langs.is_empty() {
+        println!("  (none)");
+    } else {
+        langs.sort();
+        for lang in langs {
+            println!("  - {}", lang);
+        }
+    }
+    println!("  - en-US (embedded fallback)");
+    Ok(())
+}
 
+fn install_dict(lang: &str) -> Result<()> {
+    let dict_dir = get_dict_dir()?;
+    // Normalize lang for the source (wooorm uses dashes like en-US)
+    let lang_normalized = lang.replace('_', "-");
+    
+    let aff_url = format!("https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/{}/index.aff", lang_normalized);
+    let dic_url = format!("https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/{}/index.dic", lang_normalized);
+
+    println!("Downloading dictionary for {}...", lang_normalized);
+    
+    let aff_content = reqwest::blocking::get(&aff_url)
+        .context("Failed to download .aff file")?
+        .error_for_status()
+        .context("Server returned error for .aff file. Check if language exists at https://github.com/wooorm/dictionaries")?
+        .text()?;
+        
+    let dic_content = reqwest::blocking::get(&dic_url)
+        .context("Failed to download .dic file")?
+        .error_for_status()
+        .context("Server returned error for .dic file")?
+        .text()?;
+
+    fs::write(dict_dir.join(format!("{}.aff", lang_normalized)), aff_content)?;
+    fs::write(dict_dir.join(format!("{}.dic", lang_normalized)), dic_content)?;
+
+    println!("Successfully installed {} dictionary.", lang_normalized);
+    Ok(())
+}
+
+fn load_dictionary(lang: &str) -> Result<Dictionary> {
+    let dict_dir = get_dict_dir()?;
+    let lang_normalized = lang.replace('_', "-");
+    let aff_path = dict_dir.join(format!("{}.aff", lang_normalized));
+    let dic_path = dict_dir.join(format!("{}.dic", lang_normalized));
+
+    if aff_path.exists() && dic_path.exists() {
+        let aff_content = fs::read_to_string(aff_path)?;
+        let dic_content = fs::read_to_string(dic_path)?;
+        return zspell::builder()
+            .config_str(&aff_content)
+            .dict_str(&dic_content)
+            .build()
+            .map_err(|e| anyhow!("Failed to build dictionary: {}", e));
+    }
+
+    if lang_normalized == "en-US" || lang_normalized == "en" {
+        const AFF_CONTENT: &str = include_str!("../en_US.aff");
+        const DIC_CONTENT: &str = include_str!("../en_US.dic");
+        return zspell::builder()
+            .config_str(AFF_CONTENT)
+            .dict_str(DIC_CONTENT)
+            .build()
+            .map_err(|e| anyhow!("Failed to build embedded dictionary: {}", e));
+    }
+
+    Err(anyhow!("Dictionary for '{}' not found. Install it with: rsspell dicts install {}", lang_normalized, lang_normalized))
+}
+
+fn run_scan(root_path: &str, lang: &str) -> Result<()> {
+    let dict = load_dictionary(lang)?;
     let re = Regex::new(r"[a-zA-Z]+").unwrap();
 
-    println!("Scanning for typos using zspell in: {}\n", root_path);
+    println!("Scanning for typos using zspell (lang: {}) in: {}\n", lang, root_path);
 
     for entry in WalkDir::new(root_path).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
@@ -83,6 +199,7 @@ fn run_scan(root_path: &str) {
             }
         }
     }
+    Ok(())
 }
 
 fn check_markdown(path: &Path, dict: &Dictionary, re: &Regex) {
