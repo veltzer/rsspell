@@ -171,8 +171,8 @@ fn load_dictionary(lang: &str) -> Result<Dictionary> {
     }
 
     if lang_normalized == "en-US" || lang_normalized == "en" {
-        const AFF_CONTENT: &str = include_str!("../en_US.aff");
-        const DIC_CONTENT: &str = include_str!("../en_US.dic");
+        const AFF_CONTENT: &str = include_str!("../dictionaries/en_US.aff");
+        const DIC_CONTENT: &str = include_str!("../dictionaries/en_US.dic");
         return zspell::builder()
             .config_str(AFF_CONTENT)
             .dict_str(DIC_CONTENT)
@@ -249,8 +249,8 @@ mod tests {
 
     #[test]
     fn test_find_typos() {
-        let aff_content = include_str!("../en_US.aff");
-        let dic_content = include_str!("../en_US.dic");
+        let aff_content = include_str!("../dictionaries/en_US.aff");
+        let dic_content = include_str!("../dictionaries/en_US.dic");
         let dict = zspell::builder()
             .config_str(aff_content)
             .dict_str(dic_content)
