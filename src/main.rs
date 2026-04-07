@@ -4,7 +4,8 @@ use std::path::Path;
 use walkdir::WalkDir;
 use regex::Regex;
 use zspell::Dictionary;
-use clap::{Parser as ClapParser, Subcommand};
+use clap::{Parser as ClapParser, Subcommand, CommandFactory};
+use clap_complete::{generate, Shell};
 
 #[derive(ClapParser)]
 #[command(name = "rsspell")]
@@ -24,6 +25,11 @@ enum Commands {
     },
     /// Show version information
     Version,
+    /// Generate shell completions
+    Complete {
+        /// The shell to generate completions for
+        shell: Shell,
+    },
 }
 
 fn main() {
@@ -42,6 +48,11 @@ fn main() {
             println!("RUSTC_SEMVER: {}", env!("RUSTC_SEMVER"));
             println!("RUST_EDITION: {}", env!("RUST_EDITION"));
             println!("BUILD_TIMESTAMP: {}", env!("BUILD_TIMESTAMP"));
+        }
+        Commands::Complete { shell } => {
+            let mut cmd = Cli::command();
+            let name = cmd.get_name().to_string();
+            generate(*shell, &mut cmd, name, &mut std::io::stdout());
         }
     }
 }

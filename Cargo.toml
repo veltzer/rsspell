@@ -2,6 +2,10 @@
 name = "rsspell"
 version = "0.1.0"
 edition = "2024"
+authors = ["Mark Veltzer <mark.veltzer@gmail.com>"]
+description = "Fast and efficient spell checker"
+license = "MIT"
+repository = "https://github.com/veltzer/rsspell"
 
 [dependencies]
 pulldown-cmark = "0.13"
@@ -10,10 +14,9 @@ walkdir = "2"
 regex = "1"
 zspell = "0.5.5"
 clap = { version = "4.5", features = ["derive"] }
+clap_complete = "4.5"
 
 [profile.release]
-opt-level = 3       # Maximize speed
-lto = true          # Link Time Optimization
-codegen-units = 1   # Better optimization, slower build
-panic = "abort"     # Remove panic unwinding to save space
-strip = true        # Strip symbols from the binary
+strip = true
+lto = true
+codegen-units = 1
