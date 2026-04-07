@@ -23,4 +23,22 @@ By separating the rules from the word list, `rsspell` can recognize hundreds of 
 
 ## Usage
 
-... (rest of the file)
+`rsspell` is easy to use from the command line.
+
+### Scanning for Typos
+
+To scan all Markdown and SVG files in the current directory:
+
+```bash
+rsspell scan
+```
+
+### Managing Dictionaries
+
+`rsspell` includes a built-in `en-US` dictionary. You can manage additional dictionaries with the `dicts` subcommand:
+
+*   **List installed:** `rsspell dicts list`
+*   **List remote:** `rsspell dicts list-remote`
+*   **Install new:** `rsspell dicts install de-DE`
+
+For more details, see the [full documentation](https://veltzer.github.io/rsspell/).
