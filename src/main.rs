@@ -92,7 +92,7 @@ fn check_markdown(path: &Path, dict: &Dictionary, re: &Regex) {
     println!("Checking Markdown: {}", path.display());
     for event in parser {
         if let Event::Text(text) = event {
-            find_typos(&text, dict, re);
+            let _ = find_typos(&text, dict, re);
         }
     }
     println!();
@@ -106,7 +106,7 @@ fn check_svg(path: &Path, dict: &Dictionary, re: &Regex) {
     while let Some(event) = parser.next() {
         match event {
             svg::parser::Event::Text(text) => {
-                find_typos(&text, dict, re);
+                let _ = find_typos(&text, dict, re);
             }
             _ => {}
         }
@@ -114,11 +114,34 @@ fn check_svg(path: &Path, dict: &Dictionary, re: &Regex) {
     println!();
 }
 
-fn find_typos(text: &str, dict: &Dictionary, re: &Regex) {
+fn find_typos(text: &str, dict: &Dictionary, re: &Regex) -> Vec<String> {
+    let mut typos = Vec::new();
     for mat in re.find_iter(text) {
         let word = mat.as_str();
         if !dict.check_word(word) {
             println!("  -> Typo found: \"{}\"", word);
+            typos.push(word.to_string());
         }
+    }
+    typos
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_find_typos() {
+        let aff_content = include_str!("../en_US.aff");
+        let dic_content = include_str!("../en_US.dic");
+        let dict = zspell::builder()
+            .config_str(aff_content)
+            .dict_str(dic_content)
+            .build()
+            .unwrap();
+        let re = Regex::new(r"[a-zA-Z]+").unwrap();
+        
+        let typos = find_typos("This is a test with a typo: markdonw", &dict, &re);
+        assert_eq!(typos, vec!["markdonw"]);
     }
 }
