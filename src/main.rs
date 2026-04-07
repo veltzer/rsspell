@@ -45,6 +45,8 @@ enum Commands {
 enum DictAction {
     /// List installed dictionaries
     List,
+    /// List dictionaries available for download
+    ListRemote,
     /// Install a new dictionary (e.g., en-US, de-DE)
     Install {
         /// The language code to install
@@ -78,11 +80,42 @@ fn main() -> Result<()> {
         }
         Commands::Dicts { action } => match action {
             DictAction::List => list_dicts()?,
+            DictAction::ListRemote => list_remote_dicts()?,
             DictAction::Install { lang } => install_dict(lang)?,
             DictAction::Path => println!("{}", get_dict_dir()?.display()),
         },
     }
 
+    Ok(())
+}
+
+fn list_remote_dicts() -> Result<()> {
+    let url = "https://api.github.com/repos/wooorm/dictionaries/contents/dictionaries";
+    let client = reqwest::blocking::Client::builder()
+        .user_agent("rsspell")
+        .build()?;
+    
+    println!("Fetching available dictionaries from wooorm/dictionaries...");
+    
+    let resp = client.get(url).send()?.error_for_status()?;
+    let contents: Vec<serde_json::Value> = resp.json()?;
+    
+    let mut langs = Vec::new();
+    for item in contents {
+        if item["type"] == "dir" {
+            if let Some(name) = item["name"].as_str() {
+                langs.push(name.to_string());
+            }
+        }
+    }
+    
+    langs.sort();
+    println!("Available languages:");
+    for lang in langs {
+        println!("  - {}", lang);
+    }
+    println!("\nInstall any of these with: rsspell dicts install <lang>");
+    
     Ok(())
 }
 

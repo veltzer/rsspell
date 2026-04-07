@@ -32,6 +32,12 @@ rsspell scan --lang de-DE
 rsspell dicts list
 ```
 
+### List Dictionaries Available for Download
+
+```bash
+rsspell dicts list-remote
+```
+
 ### Install a New Dictionary
 
 To install a dictionary from the [wooorm/dictionaries](https://github.com/wooorm/dictionaries) repository:

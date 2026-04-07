@@ -1255,6 +1255,7 @@ dependencies = [
  "pulldown-cmark",
  "regex",
  "reqwest",
+ "serde_json",
  "svg",
  "walkdir",
  "zspell",
