@@ -1,0 +1,10 @@
+[book]
+authors = ["Mark Veltzer"]
+language = "en"
+multilingual = false
+src = "src"
+title = "rsspell Documentation"
+
+[output.html]
+git-repository-url = "https://github.com/veltzer/rsspell"
+edit-url-template = "https://github.com/veltzer/rsspell/edit/main/book/src/{path}"
