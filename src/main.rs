@@ -34,15 +34,14 @@ fn main() {
             run_scan(path);
         }
         Commands::Version => {
-            println!("rsspell {}", env!("CARGO_PKG_VERSION"));
-            println!("Build details:");
-            println!("  Edition:   {}", env!("RUST_EDITION"));
-            println!("  Git SHA:   {}", env!("GIT_SHA"));
-            println!("  Branch:    {}", env!("GIT_BRANCH"));
-            println!("  Describe:  {}", env!("GIT_DESCRIBE"));
-            println!("  Rustc:     {}", env!("RUSTC_SEMVER"));
-            println!("  Timestamp: {}", env!("BUILD_TIMESTAMP"));
-            println!("  Dirty:     {}", env!("GIT_DIRTY"));
+            println!("rsspell {} by {}", env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_AUTHORS"));
+            println!("GIT_DESCRIBE: {}", env!("GIT_DESCRIBE"));
+            println!("GIT_SHA: {}", env!("GIT_SHA"));
+            println!("GIT_BRANCH: {}", env!("GIT_BRANCH"));
+            println!("GIT_DIRTY: {}", env!("GIT_DIRTY"));
+            println!("RUSTC_SEMVER: {}", env!("RUSTC_SEMVER"));
+            println!("RUST_EDITION: {}", env!("RUST_EDITION"));
+            println!("BUILD_TIMESTAMP: {}", env!("BUILD_TIMESTAMP"));
         }
     }
 }
