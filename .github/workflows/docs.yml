@@ -3,7 +3,7 @@ name: Docs
 on:
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 permissions:
@@ -41,7 +41,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: github-pages
-          path: docs/book/html
+          path: docs/book
 
       - name: Deploy to GitHub Pages
         id: deployment
