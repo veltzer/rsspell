@@ -117,10 +117,10 @@ fn list_remote_dicts() -> Result<()> {
 fn parse_remote_dicts(contents: Vec<serde_json::Value>) -> Vec<String> {
     let mut langs = Vec::new();
     for item in contents {
-        if item["type"] == "dir" {
-            if let Some(name) = item["name"].as_str() {
-                langs.push(name.to_string());
-            }
+        if item["type"] == "dir"
+            && let Some(name) = item["name"].as_str()
+        {
+            langs.push(name.to_string());
         }
     }
     langs.sort();
@@ -147,10 +147,11 @@ fn list_dicts() -> Result<()> {
     for entry in fs::read_dir(dict_dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("aff") {
-            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                langs.push(stem.to_string());
-            }
+        if path.is_file()
+            && path.extension().and_then(|s| s.to_str()) == Some("aff")
+            && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+        {
+            langs.push(stem.to_string());
         }
     }
     
@@ -281,13 +282,10 @@ fn check_svg(path: &Path, dict: &Dictionary, re: &Regex, ignore: &[String]) {
 
 fn find_svg_typos(content: &str, dict: &Dictionary, re: &Regex, ignore: &[String]) -> Vec<String> {
     let mut all_typos = Vec::new();
-    let mut parser = svg::Parser::new(content);
-    while let Some(event) = parser.next() {
-        match event {
-            svg::parser::Event::Text(text) => {
-                all_typos.extend(find_typos(&text, dict, re, ignore));
-            }
-            _ => {}
+    let parser = svg::Parser::new(content);
+    for event in parser {
+        if let svg::parser::Event::Text(text) = event {
+            all_typos.extend(find_typos(text, dict, re, ignore));
         }
     }
     all_typos
