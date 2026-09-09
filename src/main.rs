@@ -1,12 +1,12 @@
-use pulldown_cmark::{Parser, Event};
+use anyhow::{Context, Result, anyhow};
+use clap::{CommandFactory, Parser as ClapParser, Subcommand};
+use clap_complete::{Shell, generate};
+use pulldown_cmark::{Event, Parser};
+use regex::Regex;
 use std::fs;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
-use regex::Regex;
 use zspell::Dictionary;
-use clap::{Parser as ClapParser, Subcommand, CommandFactory};
-use clap_complete::{generate, Shell};
-use anyhow::{Context, Result, anyhow};
 
 #[derive(ClapParser)]
 #[command(name = "rsspell")]
@@ -67,7 +67,11 @@ fn main() -> Result<()> {
             run_scan(path, lang, ignore)?;
         }
         Commands::Version => {
-            println!("rsspell {} by {}", env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_AUTHORS"));
+            println!(
+                "rsspell {} by {}",
+                env!("CARGO_PKG_VERSION"),
+                env!("CARGO_PKG_AUTHORS")
+            );
             println!("GIT_DESCRIBE: {}", env!("GIT_DESCRIBE"));
             println!("GIT_SHA: {}", env!("GIT_SHA"));
             println!("GIT_BRANCH: {}", env!("GIT_BRANCH"));
@@ -97,20 +101,20 @@ fn list_remote_dicts() -> Result<()> {
     let client = reqwest::blocking::Client::builder()
         .user_agent("rsspell")
         .build()?;
-    
+
     println!("Fetching available dictionaries from wooorm/dictionaries...");
-    
+
     let resp = client.get(url).send()?.error_for_status()?;
     let contents: Vec<serde_json::Value> = resp.json()?;
-    
+
     let langs = parse_remote_dicts(contents);
-    
+
     println!("Available languages:");
     for lang in langs {
         println!("  - {}", lang);
     }
     println!("\nInstall any of these with: rsspell dicts install <lang>");
-    
+
     Ok(())
 }
 
@@ -128,8 +132,7 @@ fn parse_remote_dicts(contents: Vec<serde_json::Value>) -> Vec<String> {
 }
 
 fn get_dict_dir() -> Result<PathBuf> {
-    let mut path = dirs::data_local_dir()
-        .context("Could not find local data directory")?;
+    let mut path = dirs::data_local_dir().context("Could not find local data directory")?;
     path.push("rsspell");
     path.push("dicts");
     if !path.exists() {
@@ -142,7 +145,7 @@ fn list_dicts() -> Result<()> {
     let dict_dir = get_dict_dir()?;
     println!("Dictionaries stored in: {}", dict_dir.display());
     println!("Installed languages:");
-    
+
     let mut langs = Vec::new();
     for entry in fs::read_dir(dict_dir)? {
         let entry = entry?;
@@ -154,7 +157,7 @@ fn list_dicts() -> Result<()> {
             langs.push(stem.to_string());
         }
     }
-    
+
     if langs.is_empty() {
         println!("  (none)");
     } else {
@@ -171,26 +174,38 @@ fn install_dict(lang: &str) -> Result<()> {
     let dict_dir = get_dict_dir()?;
     // Normalize lang for the source (wooorm uses dashes like en-US)
     let lang_normalized = lang.replace('_', "-");
-    
-    let aff_url = format!("https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/{}/index.aff", lang_normalized);
-    let dic_url = format!("https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/{}/index.dic", lang_normalized);
+
+    let aff_url = format!(
+        "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/{}/index.aff",
+        lang_normalized
+    );
+    let dic_url = format!(
+        "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/{}/index.dic",
+        lang_normalized
+    );
 
     println!("Downloading dictionary for {}...", lang_normalized);
-    
+
     let aff_content = reqwest::blocking::get(&aff_url)
         .context("Failed to download .aff file")?
         .error_for_status()
         .context("Server returned error for .aff file. Check if language exists at https://github.com/wooorm/dictionaries")?
         .text()?;
-        
+
     let dic_content = reqwest::blocking::get(&dic_url)
         .context("Failed to download .dic file")?
         .error_for_status()
         .context("Server returned error for .dic file")?
         .text()?;
 
-    fs::write(dict_dir.join(format!("{}.aff", lang_normalized)), aff_content)?;
-    fs::write(dict_dir.join(format!("{}.dic", lang_normalized)), dic_content)?;
+    fs::write(
+        dict_dir.join(format!("{}.aff", lang_normalized)),
+        aff_content,
+    )?;
+    fs::write(
+        dict_dir.join(format!("{}.dic", lang_normalized)),
+        dic_content,
+    )?;
 
     println!("Successfully installed {} dictionary.", lang_normalized);
     Ok(())
@@ -222,7 +237,11 @@ fn load_dictionary(lang: &str) -> Result<Dictionary> {
             .map_err(|e| anyhow!("Failed to build embedded dictionary: {}", e));
     }
 
-    Err(anyhow!("Dictionary for '{}' not found. Install it with: rsspell dicts install {}", lang_normalized, lang_normalized))
+    Err(anyhow!(
+        "Dictionary for '{}' not found. Install it with: rsspell dicts install {}",
+        lang_normalized,
+        lang_normalized
+    ))
 }
 
 fn run_scan(root_path: &str, lang: &str, ignore: &[String]) -> Result<()> {
@@ -239,7 +258,10 @@ fn run_scan(root_path: &str, lang: &str, ignore: &[String]) -> Result<()> {
         }
     }
 
-    println!("Scanning for typos using zspell (lang: {}) in: {}\n", lang, root_path);
+    println!(
+        "Scanning for typos using zspell (lang: {}) in: {}\n",
+        lang, root_path
+    );
 
     for entry in WalkDir::new(root_path).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
@@ -261,7 +283,12 @@ fn check_markdown(path: &Path, dict: &Dictionary, re: &Regex, ignore: &[String])
     println!();
 }
 
-fn find_markdown_typos(content: &str, dict: &Dictionary, re: &Regex, ignore: &[String]) -> Vec<String> {
+fn find_markdown_typos(
+    content: &str,
+    dict: &Dictionary,
+    re: &Regex,
+    ignore: &[String],
+) -> Vec<String> {
     let mut all_typos = Vec::new();
     let parser = Parser::new(content);
 
@@ -320,7 +347,7 @@ mod tests {
             .build()
             .unwrap();
         let re = Regex::new(r"[a-zA-Z]+").unwrap();
-        
+
         let typos = find_typos("This is a test with a typo: markdonw", &dict, &re, &[]);
         assert_eq!(typos, vec!["markdonw"]);
     }
@@ -368,7 +395,12 @@ mod tests {
             .unwrap();
         let re = Regex::new(r"[a-zA-Z]+").unwrap();
 
-        let typos = find_typos("This markdonw should be ignored", &dict, &re, &["markdonw".to_string()]);
+        let typos = find_typos(
+            "This markdonw should be ignored",
+            &dict,
+            &re,
+            &["markdonw".to_string()],
+        );
         assert!(typos.is_empty());
     }
 
