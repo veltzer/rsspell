@@ -9,7 +9,7 @@ repository = "https://github.com/veltzer/rsspell"
 
 [dependencies]
 pulldown-cmark = "0.13"
-svg = "0.17"
+svg = "0.18"
 walkdir = "2"
 regex = "1"
 zspell = "0.5.5"
