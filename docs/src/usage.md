@@ -33,6 +33,7 @@ rsspell scan --ignore word1 word2
 You can also create a `.rsspellignore` file in the root of your project to skip words automatically. Each line should contain one word to ignore. Lines starting with `#` are treated as comments.
 
 Example `.rsspellignore`:
+
 ```text
 # Project-specific technical terms
 rsspell
@@ -85,4 +86,5 @@ rsspell version
 ```bash
 rsspell complete <SHELL>
 ```
+
 Where `<SHELL>` is one of `bash`, `elvish`, `fish`, `powershell`, or `zsh`.
