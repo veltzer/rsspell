@@ -111,7 +111,7 @@ fn list_remote_dicts() -> Result<()> {
 
     println!("Available languages:");
     for lang in langs {
-        println!("  - {}", lang);
+        println!("  - {lang}");
     }
     println!("\nInstall any of these with: rsspell dicts install <lang>");
 
@@ -163,7 +163,7 @@ fn list_dicts() -> Result<()> {
     } else {
         langs.sort();
         for lang in langs {
-            println!("  - {}", lang);
+            println!("  - {lang}");
         }
     }
     println!("  - en-US (embedded fallback)");
@@ -176,15 +176,13 @@ fn install_dict(lang: &str) -> Result<()> {
     let lang_normalized = lang.replace('_', "-");
 
     let aff_url = format!(
-        "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/{}/index.aff",
-        lang_normalized
+        "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/{lang_normalized}/index.aff"
     );
     let dic_url = format!(
-        "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/{}/index.dic",
-        lang_normalized
+        "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/{lang_normalized}/index.dic"
     );
 
-    println!("Downloading dictionary for {}...", lang_normalized);
+    println!("Downloading dictionary for {lang_normalized}...");
 
     let aff_content = reqwest::blocking::get(&aff_url)
         .context("Failed to download .aff file")?
@@ -198,24 +196,18 @@ fn install_dict(lang: &str) -> Result<()> {
         .context("Server returned error for .dic file")?
         .text()?;
 
-    fs::write(
-        dict_dir.join(format!("{}.aff", lang_normalized)),
-        aff_content,
-    )?;
-    fs::write(
-        dict_dir.join(format!("{}.dic", lang_normalized)),
-        dic_content,
-    )?;
+    fs::write(dict_dir.join(format!("{lang_normalized}.aff")), aff_content)?;
+    fs::write(dict_dir.join(format!("{lang_normalized}.dic")), dic_content)?;
 
-    println!("Successfully installed {} dictionary.", lang_normalized);
+    println!("Successfully installed {lang_normalized} dictionary.");
     Ok(())
 }
 
 fn load_dictionary(lang: &str) -> Result<Dictionary> {
     let dict_dir = get_dict_dir()?;
     let lang_normalized = lang.replace('_', "-");
-    let aff_path = dict_dir.join(format!("{}.aff", lang_normalized));
-    let dic_path = dict_dir.join(format!("{}.dic", lang_normalized));
+    let aff_path = dict_dir.join(format!("{lang_normalized}.aff"));
+    let dic_path = dict_dir.join(format!("{lang_normalized}.dic"));
 
     if aff_path.exists() && dic_path.exists() {
         let aff_content = fs::read_to_string(aff_path)?;
@@ -224,7 +216,7 @@ fn load_dictionary(lang: &str) -> Result<Dictionary> {
             .config_str(&aff_content)
             .dict_str(&dic_content)
             .build()
-            .map_err(|e| anyhow!("Failed to build dictionary: {}", e));
+            .map_err(|e| anyhow!("Failed to build dictionary: {e}"));
     }
 
     if lang_normalized == "en-US" || lang_normalized == "en" {
@@ -234,13 +226,11 @@ fn load_dictionary(lang: &str) -> Result<Dictionary> {
             .config_str(AFF_CONTENT)
             .dict_str(DIC_CONTENT)
             .build()
-            .map_err(|e| anyhow!("Failed to build embedded dictionary: {}", e));
+            .map_err(|e| anyhow!("Failed to build embedded dictionary: {e}"));
     }
 
     Err(anyhow!(
-        "Dictionary for '{}' not found. Install it with: rsspell dicts install {}",
-        lang_normalized,
-        lang_normalized
+        "Dictionary for '{lang_normalized}' not found. Install it with: rsspell dicts install {lang_normalized}"
     ))
 }
 
@@ -258,12 +248,12 @@ fn run_scan(root_path: &str, lang: &str, ignore: &[String]) -> Result<()> {
         }
     }
 
-    println!(
-        "Scanning for typos using zspell (lang: {}) in: {}\n",
-        lang, root_path
-    );
+    println!("Scanning for typos using zspell (lang: {lang}) in: {root_path}\n");
 
-    for entry in WalkDir::new(root_path).into_iter().filter_map(|e| e.ok()) {
+    for entry in WalkDir::new(root_path)
+        .into_iter()
+        .filter_map(std::result::Result::ok)
+    {
         let path = entry.path();
         if path.is_file() {
             match path.extension().and_then(|s| s.to_str()) {
@@ -326,7 +316,7 @@ fn find_typos(text: &str, dict: &Dictionary, re: &Regex, ignore: &[String]) -> V
             continue;
         }
         if !dict.check_word(word) {
-            println!("  -> Typo found: \"{}\"", word);
+            println!("  -> Typo found: \"{word}\"");
             typos.push(word.to_string());
         }
     }
@@ -401,7 +391,7 @@ mod tests {
             &re,
             &["markdonw".to_string()],
         );
-        assert!(typos.is_empty());
+        assert_eq!(typos, [] as [std::string::String; 0]);
     }
 
     #[test]
