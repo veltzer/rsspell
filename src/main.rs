@@ -1,3 +1,5 @@
+//! rsspell: Fast and efficient spell checker.
+
 use anyhow::{Context, Result, anyhow};
 use clap::{CommandFactory, Parser as ClapParser, Subcommand};
 use clap_complete::{Shell, generate};
