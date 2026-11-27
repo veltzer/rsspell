@@ -236,7 +236,7 @@ fn load_dictionary(lang: &str) -> Result<Dictionary> {
 
 fn run_scan(root_path: &str, lang: &str, ignore: &[String]) -> Result<()> {
     let dict = load_dictionary(lang)?;
-    let re = Regex::new(r"[a-zA-Z]+").unwrap();
+    let re = Regex::new(r"[a-zA-Z]+")?;
 
     let mut ignore_words: Vec<String> = ignore.to_vec();
     if let Ok(content) = fs::read_to_string(".rsspellignore") {
